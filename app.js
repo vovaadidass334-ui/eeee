@@ -1,9 +1,7 @@
 /* ============================================================
    GROZOV IMPERIUM — логика
-   Один слушатель на document (делегирование).
-   Никаких innerHTML-перерисовок целых секций — только точечно.
-   Все данные — в localStorage через один слой D.
    ============================================================ */
+
 (function () {
   'use strict';
 
@@ -30,90 +28,130 @@
   };
 
   const BONUSES = [
-    {key:'bFriend', label:'Привёл друга',   hint:'Кандидат отстоял 7 дней',       amount:200, nick:true},
-    {key:'bMp',     label:'МП / ГРП',        hint:'Одобренное мероприятие',        amount:150},
-    {key:'bForum',  label:'Чистый форум',    hint:'Без просроченных жалоб',        amount:400},
-    {key:'bMentor', label:'Обучение стажёра',hint:'Инструктаж и выпуск',           amount:100},
-    {key:'bNight',  label:'Ночная смена',    hint:'7+ часов подряд',               amount:250}
+    {key:'bFriend', label:'Привёл друга',   hint:'Кандидат отстоял 7 дней',  amount:200, nick:true},
+    {key:'bMp',     label:'МП / ГРП',        hint:'Одобренное мероприятие',   amount:150},
+    {key:'bForum',  label:'Чистый форум',    hint:'Без просроченных жалоб',   amount:400},
+    {key:'bMentor', label:'Обучение стажёра',hint:'Инструктаж и выпуск',      amount:100},
+    {key:'bNight',  label:'Ночная смена',    hint:'7+ часов подряд',          amount:250}
   ];
 
   /* ---------- ХРАНИЛИЩЕ ---------- */
   const K = {
-    users:'gi_u_v3', reports:'gi_r_v3', black:'gi_b_v3', audit:'gi_a_v3',
-    tasks:'gi_t_v3', appeals:'gi_ap_v3', notifs:'gi_n_v3',
-    pinL:'gi_pl_v3', pinF:'gi_pf_v3', cur:'gi_cu_v3', acc:'gi_ac_v3'
+    users:'gi_u_v4', reports:'gi_r_v4', black:'gi_b_v4', audit:'gi_a_v4',
+    tasks:'gi_t_v4', appeals:'gi_ap_v4', notifs:'gi_n_v4',
+    pinL:'gi_pl_v4', pinF:'gi_pf_v4', cur:'gi_cu_v4', acc:'gi_ac_v4'
   };
 
   function read(k, def){
-    try{ const v=localStorage.getItem(k); return v?JSON.parse(v):def; }catch(e){ return def; }
+    try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; }catch(e){ return def; }
   }
   function write(k, v){
     try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){}
   }
-  function str(k, def){ try{ return localStorage.getItem(k)||def; }catch(e){ return def; } }
+  function str(k, def){ try{ return localStorage.getItem(k) || def; }catch(e){ return def; } }
   function sstr(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
-  function sread(k, def){ try{ return sessionStorage.getItem(k)||def; }catch(e){ return def; } }
+  function sread(k, def){ try{ return sessionStorage.getItem(k) || def; }catch(e){ return def; } }
   function swrite(k, v){ try{ sessionStorage.setItem(k, v); }catch(e){} }
   function sdel(k){ try{ sessionStorage.removeItem(k); }catch(e){} }
 
-  /* При первом запуске база пуста. Никаких авто-владельцев.
-   Первого владельца создаёшь ты сам через консоль — см. код ниже. */
-let users = read(K.users, []);
-if (!Array.isArray(users)) users = [];
-write(K.users, users);
+  /* ============================================================
+     ПЕРВИЧНАЯ ИНИЦИАЛИЗАЦИЯ
+     - База НЕ содержит владельца по умолчанию.
+     - Владельца создаёшь ты через консоль: __createOwner('Ник','пароль')
+     - Пароли генерируются случайно при первом запуске и выводятся
+       в консоль один раз. В исходниках паролей нет.
+     ============================================================ */
+
+  function genPin(len){
+    const abc = 'abcdefghijkmnpqrstuvwxyz23456789';
+    let s = '';
+    for (let i = 0; i < len; i++) s += abc[Math.floor(Math.random() * abc.length)];
+    return s;
+  }
+
+  let users   = read(K.users, []);
+  if (!Array.isArray(users)) users = [];
+  write(K.users, users);
+
   let reports = read(K.reports, []);
   let black   = read(K.black, []);
   let audit   = read(K.audit, []);
   let tasks   = read(K.tasks, []);
   let appeals = read(K.appeals, []);
   let notifs  = read(K.notifs, []);
-  let curId   = str(K.cur, users[0].id);
-  let pinL    = str(K.pinL, 'imperium2026');
-  let pinF    = str(K.pinF, 'founder2026');
+
+  let curId   = str(K.cur, '');
+  let pinL    = str(K.pinL, '');
+  let pinF    = str(K.pinF, '');
   let access  = sread(K.acc, null);
   let anKey   = 'hours';
   let revId   = null;
 
+  /* Генерация паролей при первом запуске */
+  if (!pinL){
+    pinL = genPin(10);
+    sstr(K.pinL, pinL);
+    console.log(
+      '%c🔑 Пароль Руководства (ГТС–РП): ' + pinL +
+      '\n%cСохрани его. Больше нигде не показывается. Сменить можно в панели → 🔑 Пароли.',
+      'color:#D6B26E;font-weight:bold;font-size:14px',
+      'color:#8A8578;font-size:12px'
+    );
+  }
+  if (!pinF){
+    pinF = genPin(10);
+    sstr(K.pinF, pinF);
+    console.log(
+      '%c👑 Мастер-пароль Зам. Основателя: ' + pinF +
+      '\n%cСохрани его. Он нужен для выдачи ЗРП/РП/Зам. Основателя/Основателя.',
+      'color:#F08080;font-weight:bold;font-size:14px',
+      'color:#8A8578;font-size:12px'
+    );
+  }
+
+  /* ---------- УТИЛИТЫ ---------- */
   function persist(){
-    write(K.users,users); write(K.reports,reports);
-    write(K.black,black); write(K.tasks,tasks);
-    write(K.appeals,appeals); write(K.notifs,notifs);
+    write(K.users, users);   write(K.reports, reports);
+    write(K.black, black);   write(K.tasks, tasks);
+    write(K.appeals, appeals); write(K.notifs, notifs);
   }
   function me(){
+    if (!users.length) return null;
     let u = users.find(x => x.id === curId);
-    if (!u){ curId = users[0].id; sstr(K.cur,curId); u = users[0]; }
+    if (!u){ curId = users[0].id; sstr(K.cur, curId); u = users[0]; }
     return u;
   }
   function log(a, d){
-    audit.unshift({id:Date.now(),a,d,t:new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'})});
-    if (audit.length>80) audit.pop();
+    audit.unshift({id:Date.now(), a, d, t:new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'})});
+    if (audit.length > 80) audit.pop();
     write(K.audit, audit);
   }
   function pushNotif(ic, tx, cls){
-    notifs.unshift({id:Date.now(),ic,tx,cls:cls||'',t:new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})});
-    if (notifs.length>30) notifs.pop();
+    notifs.unshift({id:Date.now(), ic, tx, cls:cls||'', t:new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})});
+    if (notifs.length > 30) notifs.pop();
     persist();
   }
 
   /* ---------- ХЕЛПЕРЫ ---------- */
   const $ = s => document.querySelector(s);
   const $$ = s => document.querySelectorAll(s);
-  const fmt = n => (n||0).toLocaleString('ru-RU');
+  const fmt = n => (n || 0).toLocaleString('ru-RU');
   const today = () => new Date().toISOString().split('T')[0];
   const initials = n => n && n.includes('_')
-    ? ((n.split('_')[0][0]||'')+(n.split('_')[1]?.[0]||'')).toUpperCase()
-    : (n||'??').substring(0,2).toUpperCase();
+    ? ((n.split('_')[0][0] || '') + (n.split('_')[1]?.[0] || '')).toUpperCase()
+    : (n || '??').substring(0, 2).toUpperCase();
 
   let toastT;
   function toast(m){
     const t = $('#toast');
+    if (!t) return;
     $('#toastMsg').textContent = m;
     t.classList.add('show');
     clearTimeout(toastT);
     toastT = setTimeout(() => t.classList.remove('show'), 2600);
   }
-  function openM(id){ document.getElementById(id).classList.add('open'); }
-  function closeM(id){ document.getElementById(id).classList.remove('open'); }
+  function openM(id){ const m = document.getElementById(id); if (m) m.classList.add('open'); }
+  function closeM(id){ const m = document.getElementById(id); if (m) m.classList.remove('open'); }
   function closeAllM(){ $$('.ov.open').forEach(o => o.classList.remove('open')); }
 
   /* ---------- НАВИГАЦИЯ ---------- */
@@ -126,12 +164,31 @@ write(K.users, users);
     if (tab === 'registry'){ syncGate(); if (access) renderRegistry(); }
     if (tab === 'analytics'){ renderAnalytics(); renderCalendar(); }
     if (tab === 'tasks'){    renderTasks(); renderAppeals(); renderNotifs(); renderAchievements(); }
-    window.scrollTo({top:0,behavior:'smooth'});
+    window.scrollTo({top:0, behavior:'smooth'});
   }
 
   /* ---------- USER ---------- */
   function syncUser(){
     const u = me();
+
+    /* Если пользователей нет — показываем "гость" */
+    if (!u){
+      $('#hAv').textContent = '??';
+      $('#hNick').textContent = 'Гость';
+      $('#hRank').textContent = 'Нет аккаунта';
+      $('#hBal').textContent = '—';
+      $('#cabAv').textContent = '??';
+      $('#cabNick').textContent = 'Добро пожаловать';
+      $('#cabRank').textContent = 'Создайте аккаунт через кнопку справа сверху';
+      $('#cabBalBox').style.display = 'none';
+      $('#cabCta').style.display = 'none';
+      $('#cabCtrl').classList.add('hide');
+      $('#ctrlBlock').classList.add('hide');
+      $('#repForm').style.display = 'none';
+      $('#cabPend').classList.add('hide');
+      return;
+    }
+
     const r = RANKS[u.rankKey] || RANKS.unassigned;
     const ini = initials(u.nick);
 
@@ -183,6 +240,7 @@ write(K.users, users);
 
   function copyLink(){
     const u = me();
+    if (!u){ alert('Сначала создайте аккаунт'); return; }
     const base = location.href.split('#')[0];
     const link = base + '#assign=' + u.id;
     const txt = '⚜ GROZOV IMPERIUM\nНик: ' + u.nick + '\nID: ' + u.id + '\nСсылка: ' + link;
@@ -209,6 +267,10 @@ write(K.users, users);
     syncUser();
     const box = $('#myReps');
     const u = me();
+    if (!u){
+      box.innerHTML = '<div class="muted" style="padding:24px 12px;text-align:center">Создайте аккаунт, чтобы подавать отчёты.</div>';
+      return;
+    }
     const mine = reports.filter(r => r.userId === u.id || r.nick.toLowerCase() === u.nick.toLowerCase());
 
     if (!mine.length){
@@ -246,7 +308,7 @@ write(K.users, users);
     box.innerHTML = html;
   }
 
-  /* ---------- БОНУСЫ ---------- */
+ /* ---------- БОНУСЫ ---------- */
   function renderBonuses(){
     const box = $('#bonusList');
     let html = '';
@@ -282,9 +344,9 @@ write(K.users, users);
       const cb = document.getElementById(b.key);
       if (cb && cb.checked){
         bonus += b.amount;
-        if (b.nick){ const g = document.getElementById(b.key+'NickG'); if (g) g.classList.remove('hide'); }
+        if (b.nick){ const g = document.getElementById(b.key + 'NickG'); if (g) g.classList.remove('hide'); }
       } else if (b.nick){
-        const g = document.getElementById(b.key+'NickG'); if (g) g.classList.add('hide');
+        const g = document.getElementById(b.key + 'NickG'); if (g) g.classList.add('hide');
       }
     }
     const total = day + night + over + bonus;
@@ -304,6 +366,7 @@ write(K.users, users);
   function submitReport(e){
     e.preventDefault();
     const u = me();
+    if (!u){ alert('Сначала создайте аккаунт.'); return; }
     const bl = black.find(b => b.nick.toLowerCase() === u.nick.toLowerCase());
     if (bl){ alert('⛔ Вы в ЧСА!'); return; }
     if (u.rankKey === 'unassigned'){ alert('❌ Должность не назначена!'); return; }
@@ -317,7 +380,7 @@ write(K.users, users);
       const cb = document.getElementById(b.key);
       if (cb && cb.checked){
         if (b.nick){
-          const nk = document.getElementById(b.key+'Nick').value || 'Кандидат';
+          const nk = document.getElementById(b.key + 'Nick').value || 'Кандидат';
           bl2.push(b.label + ' (' + nk + ') +' + b.amount);
         } else bl2.push(b.label + ' +' + b.amount);
       }
@@ -358,15 +421,16 @@ write(K.users, users);
 
   function copyChat(){
     const u = me();
+    if (!u){ alert('Нет аккаунта'); return; }
     const r = RANKS[u.rankKey] || RANKS.unassigned;
     const c = calc();
     const txt = '⚜ GROZOV IMPERIUM | ОТЧЁТ\n' +
       '👤 ' + u.nick + ' [' + r.name + ']\n' +
-      '⏱ День: ' + ($('#hDay').value||0) + ' ч\n' +
-      '🌙 Ночь ×1.5: ' + ($('#hNight').value||0) + ' ч\n' +
-      '⚡ Овер +25%: ' + ($('#hOver').value||0) + ' ч\n' +
-      '💬 Репортов: ' + ($('#repCount').value||0) + '\n' +
-      '📸 Скрины: ' + ($('#proofUrl').value||'[ссылка]') + '\n' +
+      '⏱ День: ' + ($('#hDay').value || 0) + ' ч\n' +
+      '🌙 Ночь ×1.5: ' + ($('#hNight').value || 0) + ' ч\n' +
+      '⚡ Овер +25%: ' + ($('#hOver').value || 0) + ' ч\n' +
+      '💬 Репортов: ' + ($('#repCount').value || 0) + '\n' +
+      '📸 Скрины: ' + ($('#proofUrl').value || '[ссылка]') + '\n' +
       '💰 Сумма: ' + c.total + ' БС';
     if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast('📋 Скопировано')).catch(() => alert(txt));
     else alert(txt);
@@ -438,6 +502,7 @@ write(K.users, users);
 
   function renderReports(){
     const box = $('#repBox');
+    if (!box) return;
     const q  = ($('#fSearch')?.value || '').toLowerCase();
     const fs = $('#fStatus')?.value || 'all';
     const ft = $('#fType')?.value || 'all';
@@ -475,7 +540,7 @@ write(K.users, users);
       else st = '<span class="pill rej">❌ Отклонено</span>';
       const bn = r.bonuses && r.bonuses.length ? r.bonuses.join(', ') : 'нет';
 
-      html += '<div class="rep ' + (gg?'hi':'') + '">' +
+      html += '<div class="rep ' + (gg ? 'hi' : '') + '">' +
         '<div class="rep-hd">' +
           '<div class="rep-u">' +
             '<div class="rep-av">' + initials(r.nick) + '</div>' +
@@ -488,8 +553,8 @@ write(K.users, users);
           '<div><span>Д:</span> <b>' + r.hDay + 'ч</b></div>' +
           '<div><span>Н:</span> <b>' + r.hNight + 'ч</b></div>' +
           '<div><span>О:</span> <b>' + r.hOver + 'ч</b></div>' +
-          '<div><span>Реп:</span> <b>' + (r.reps||0) + '</b></div>' +
-          '<div><span>Взыск:</span> <b class="' + (r.penalties!=='Без взысканий'?'tr':'') + '">' + r.penalties + '</b></div>' +
+          '<div><span>Реп:</span> <b>' + (r.reps || 0) + '</b></div>' +
+          '<div><span>Взыск:</span> <b class="' + (r.penalties !== 'Без взысканий' ? 'tr' : '') + '">' + r.penalties + '</b></div>' +
         '</div>' +
         '<div class="muted" style="margin-bottom:4px">🎁 <b>Премии:</b> ' + bn + '</div>' +
         '<div class="muted" style="margin-bottom:8px">💬 ' + r.comment + '</div>' +
@@ -506,18 +571,19 @@ write(K.users, users);
 
   function renderRoster(){
     const box = $('#roster');
+    if (!box) return;
     let html = '';
     for (let i = 0; i < users.length; i++){
       const u = users[i];
       const r = RANKS[u.rankKey] || RANKS.unassigned;
       const gg = u.rankKey === 'zga' || u.rankKey === 'ga';
-      html += '<div class="rr" style="border-color:' + (r.ctrl?'rgba(217,83,79,.28)':(u.balance>0?'var(--line2)':'var(--line)')) + '">' +
+      html += '<div class="rr" style="border-color:' + (r.ctrl ? 'rgba(217,83,79,.28)' : (u.balance > 0 ? 'var(--line2)' : 'var(--line)')) + '">' +
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0">' +
           '<b style="font-size:12.5px;color:#FFF">' + u.nick + '</b>' +
-          '<span class="pill ' + (r.ctrl?'rej':'pend') + '" style="font-size:9.5px">' + r.name + (gg?' 🛡':'') + '</span>' +
+          '<span class="pill ' + (r.ctrl ? 'rej' : 'pend') + '" style="font-size:9.5px">' + r.name + (gg ? ' 🛡' : '') + '</span>' +
         '</div>' +
         '<div style="display:flex;gap:8px;align-items:center">' +
-          '<b class="mono" style="font-size:12.5px;color:' + (r.ctrl?'#F08080':(u.balance>0?'var(--copper)':'var(--ink3)')) + '">' + (r.ctrl?'Контроль':fmt(u.balance)+' БС') + '</b>' +
+          '<b class="mono" style="font-size:12.5px;color:' + (r.ctrl ? '#F08080' : (u.balance > 0 ? 'var(--copper)' : 'var(--ink3)')) + '">' + (r.ctrl ? 'Контроль' : fmt(u.balance) + ' БС') + '</b>' +
           '<button class="ghost sm" data-assign="' + u.id + '">Изменить</button>' +
         '</div>' +
       '</div>';
@@ -527,26 +593,28 @@ write(K.users, users);
 
   function renderLoad(){
     const box = $('#loadChart');
+    if (!box) return;
     const data = {};
     for (let i = 0; i < reports.length; i++){
       const r = reports[i];
       if (r.status === 'rejected') continue;
       data[r.nick] = (data[r.nick] || 0) + r.hDay + r.hNight + r.hOver;
     }
-    const arr = Object.keys(data).map(n => [n, data[n]]).sort((a,b) => b[1] - a[1]).slice(0, 10);
+    const arr = Object.keys(data).map(n => [n, data[n]]).sort((a, b) => b[1] - a[1]).slice(0, 10);
     if (!arr.length){ box.innerHTML = '<div class="muted">Нет данных.</div>'; return; }
     const max = Math.max.apply(null, arr.map(a => a[1])) || 1;
     let html = '';
     for (let i = 0; i < arr.length; i++){
       const n = arr[i][0], h = arr[i][1];
       html += '<div class="bar"><div class="bar-l"><span>' + n + '</span><b>' + h + ' ч</b></div>' +
-        '<div class="bar-t"><div class="bar-f" style="width:' + Math.round(h/max*100) + '%"></div></div></div>';
+        '<div class="bar-t"><div class="bar-f" style="width:' + Math.round(h / max * 100) + '%"></div></div></div>';
     }
     box.innerHTML = html;
   }
 
   function renderAudit(){
     const box = $('#auditBox');
+    if (!box) return;
     if (!audit.length){ box.innerHTML = '<div class="muted">Записей нет.</div>'; return; }
     let html = '';
     for (let i = 0; i < audit.length; i++){
@@ -578,8 +646,8 @@ write(K.users, users);
     const oral = parseInt($('#rvOral').value) || 0;
     const strict = parseInt($('#rvStrict').value) || 0;
     const man = parseInt($('#rvManual').value) || 0;
-    const pct = Math.min(oral*10 + strict*25, 100);
-    const fin = Math.max(0, r.base - Math.round(r.base*pct/100) - man);
+    const pct = Math.min(oral * 10 + strict * 25, 100);
+    const fin = Math.max(0, r.base - Math.round(r.base * pct / 100) - man);
     $('#rvFinal').textContent = fmt(fin) + ' БС';
     return {pct, man, fin};
   }
@@ -592,11 +660,11 @@ write(K.users, users);
     const rsn = $('#rvReason').value.trim();
     let pen = 'Без взысканий';
     if (c.pct > 0 || c.man > 0){
-      pen = (oral>0?oral+' уст. ':'') + (strict>0?strict+' строг. ':'') + (c.man>0?'-'+c.man+'БС ':'') + (rsn?'('+rsn+')':'');
+      pen = (oral > 0 ? oral + ' уст. ' : '') + (strict > 0 ? strict + ' строг. ' : '') + (c.man > 0 ? '-' + c.man + 'БС ' : '') + (rsn ? '(' + rsn + ')' : '');
     }
     let u = users.find(x => x.id === r.userId) || users.find(x => x.nick.toLowerCase() === r.nick.toLowerCase());
     if (!u){
-      u = {id:'user_'+Date.now(), nick:r.nick, forum:'https://forum.blackrussia.online', vk:'https://vk.com', rankKey:r.rankKey, balance:0, pass:'123'};
+      u = {id:'user_' + Date.now(), nick:r.nick, forum:'https://forum.blackrussia.online', vk:'https://vk.com', rankKey:r.rankKey, balance:0, pass:'123'};
       users.push(u);
     }
     u.balance = (u.balance || 0) + c.fin;
@@ -643,6 +711,7 @@ write(K.users, users);
   /* ---------- НАЗНАЧЕНИЕ ---------- */
   function openAssign(presel){
     const us = $('#asUser');
+    if (!us) return;
     let uo = '';
     for (let i = 0; i < users.length; i++){
       const u = users[i];
@@ -661,13 +730,13 @@ write(K.users, users);
     h += '<optgroup label="⚜ ЗРП и РП (Зам. Основателя)">';
     for (const k in RANKS){ const v = RANKS[k]; if (v.cat === 'supreme' && v.lvl === 2){
       const lock = access !== 'founder';
-      h += '<option value="' + k + '">⚜ ' + v.name + (lock?' [🔒]':'') + '</option>';
+      h += '<option value="' + k + '">⚜ ' + v.name + (lock ? ' [🔒]' : '') + '</option>';
     } }
     h += '</optgroup>';
     h += '<optgroup label="⚜ Владельцы (Зам. Основателя)">';
     for (const k in RANKS){ const v = RANKS[k]; if (v.cat === 'supreme' && v.lvl === 3){
       const lock = access !== 'founder';
-      h += '<option value="' + k + '">⚜ ' + v.name + (lock?' [🔒]':'') + '</option>';
+      h += '<option value="' + k + '">⚜ ' + v.name + (lock ? ' [🔒]' : '') + '</option>';
     } }
     h += '</optgroup>';
     $('#asRank').innerHTML = h;
@@ -718,12 +787,13 @@ write(K.users, users);
   /* ---------- ВЫПЛАТА ---------- */
   function openPayout(){
     const box = $('#payList');
+    if (!box) return;
     let sum = 0, html = '';
     for (let i = 0; i < users.length; i++){
       const u = users[i];
-      if ((u.balance||0) > 0){
+      if ((u.balance || 0) > 0){
         sum += u.balance;
-        html += '<div class="fb"><span>' + u.nick + ' (' + (RANKS[u.rankKey]||{}).name + '):</span><b class="tc">' + fmt(u.balance) + ' БС</b></div>';
+        html += '<div class="fb"><span>' + u.nick + ' (' + (RANKS[u.rankKey] || {}).name + '):</span><b class="tc">' + fmt(u.balance) + ' БС</b></div>';
       }
     }
     $('#payTotal').textContent = fmt(sum) + ' БС';
@@ -733,7 +803,7 @@ write(K.users, users);
   function confirmPayout(){
     let sum = 0, cnt = 0;
     for (let i = 0; i < users.length; i++){
-      if ((users[i].balance||0) > 0){ sum += users[i].balance; cnt++; users[i].balance = 0; }
+      if ((users[i].balance || 0) > 0){ sum += users[i].balance; cnt++; users[i].balance = 0; }
     }
     if (!cnt){ alert('Нет средств!'); closeM('mPay'); return; }
     for (let i = 0; i < reports.length; i++){
@@ -753,6 +823,7 @@ write(K.users, users);
   /* ---------- ЧСА ---------- */
   function renderBlack(){
     const box = $('#blackList');
+    if (!box) return;
     if (!black.length){ box.innerHTML = '<div class="muted">Пусто.</div>'; return; }
     let html = '';
     for (let i = 0; i < black.length; i++){
@@ -768,7 +839,7 @@ write(K.users, users);
     const n = $('#blNick').value.trim();
     const r = $('#blReason').value.trim();
     if (black.find(b => b.nick.toLowerCase() === n.toLowerCase())){ alert('Уже в ЧСА'); return; }
-    black.unshift({id:Date.now(),nick:n,reason:r,date:new Date().toLocaleDateString('ru-RU')});
+    black.unshift({id:Date.now(), nick:n, reason:r, date:new Date().toLocaleDateString('ru-RU')});
     persist();
     renderBlack();
     log('ЧСА', n + ' — ' + r);
@@ -784,9 +855,10 @@ write(K.users, users);
     toast('Вынесен из ЧСА');
   }
 
-  /* ---------- АНАЛИТИКА / КАЛЕНДАРЬ ---------- */
+ /* ---------- АНАЛИТИКА / КАЛЕНДАРЬ ---------- */
   function renderAnalytics(){
     const box = $('#anBox');
+    if (!box) return;
     const data = {};
     for (let i = 0; i < reports.length; i++){
       const r = reports[i];
@@ -796,7 +868,7 @@ write(K.users, users);
       data[r.nick].bs += r.final || r.base || 0;
       data[r.nick].reports++;
     }
-    const arr = Object.keys(data).map(n => [n, data[n]]).sort((a,b) => b[1][anKey] - a[1][anKey]).slice(0, 12);
+    const arr = Object.keys(data).map(n => [n, data[n]]).sort((a, b) => b[1][anKey] - a[1][anKey]).slice(0, 12);
     if (!arr.length){ box.innerHTML = '<div class="muted">Нет данных.</div>'; return; }
     const max = Math.max.apply(null, arr.map(a => a[1][anKey])) || 1;
     let html = '';
@@ -804,18 +876,19 @@ write(K.users, users);
       const n = arr[i][0], v = arr[i][1][anKey];
       const lbl = anKey === 'hours' ? v + ' ч' : anKey === 'bs' ? fmt(v) + ' БС' : v;
       html += '<div class="bar"><div class="bar-l"><span>' + n + '</span><b>' + lbl + '</b></div>' +
-        '<div class="bar-t"><div class="bar-f" style="width:' + Math.round(v/max*100) + '%"></div></div></div>';
+        '<div class="bar-t"><div class="bar-f" style="width:' + Math.round(v / max * 100) + '%"></div></div></div>';
     }
     box.innerHTML = html;
   }
 
   function renderCalendar(){
     const box = $('#calBox');
+    if (!box) return;
     const now = new Date();
     const y = now.getFullYear(), m = now.getMonth();
     const first = new Date(y, m, 1);
     const start = (first.getDay() + 6) % 7;
-    const days = new Date(y, m+1, 0).getDate();
+    const days = new Date(y, m + 1, 0).getDate();
     const mn = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
     const dn = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 
@@ -834,8 +907,8 @@ write(K.users, users);
     for (let i = 0; i < start; i++) html += '<div class="cal-c empty"></div>';
     for (let d = 1; d <= days; d++){
       const h = map[d] || 0;
-      const cls = 'cal-c' + (h?' has':'') + (d === now.getDate()?' today':'');
-      html += '<div class="' + cls + '"><div class="d">' + d + '</div>' + (h?'<div class="h">'+h+'ч</div>':'') + '</div>';
+      const cls = 'cal-c' + (h ? ' has' : '') + (d === now.getDate() ? ' today' : '');
+      html += '<div class="' + cls + '"><div class="d">' + d + '</div>' + (h ? '<div class="h">' + h + 'ч</div>' : '') + '</div>';
     }
     html += '</div>';
     box.innerHTML = html;
@@ -844,17 +917,18 @@ write(K.users, users);
   /* ---------- ЗАДАЧИ / АПЕЛЛЯЦИИ / УВЕДОМЛЕНИЯ / ДОСТИЖЕНИЯ ---------- */
   function renderTasks(){
     const box = $('#taskList');
+    if (!box) return;
     if (!tasks.length){ box.innerHTML = '<div class="muted">Пусто.</div>'; return; }
     const col = {normal:'var(--ink3)', high:'var(--am)', urgent:'var(--cr)'};
     let html = '';
     for (let i = 0; i < tasks.length; i++){
       const t = tasks[i];
-      html += '<div class="task ' + (t.done?'done':'') + '">' +
-        '<input type="checkbox" ' + (t.done?'checked':'') + ' data-tgt="' + t.id + '">' +
+      html += '<div class="task ' + (t.done ? 'done' : '') + '">' +
+        '<input type="checkbox" ' + (t.done ? 'checked' : '') + ' data-tgt="' + t.id + '">' +
         '<div class="task-b"><div class="task-t">' + t.title + '</div>' +
         '<div class="task-d"><span style="color:' + col[t.prio] + ';font-weight:700">' +
-          (t.prio==='urgent'?'🔴 срочно':t.prio==='high'?'🟡 высокий':'⚪ обычный') + '</span>' +
-          (t.date?' · до '+t.date:'') + '</div></div>' +
+          (t.prio === 'urgent' ? '🔴 срочно' : t.prio === 'high' ? '🟡 высокий' : '⚪ обычный') + '</span>' +
+          (t.date ? ' · до ' + t.date : '') + '</div></div>' +
         '<button class="ghost sm" data-tdl="' + t.id + '">✕</button></div>';
     }
     box.innerHTML = html;
@@ -872,17 +946,18 @@ write(K.users, users);
 
   function renderAppeals(){
     const box = $('#appealList');
+    if (!box) return;
     if (!appeals.length){ box.innerHTML = '<div class="muted">Пусто.</div>'; return; }
     let html = '';
     for (let i = 0; i < appeals.length; i++){
       const a = appeals[i];
-      const cls = 'appeal' + (a.status==='accepted'?' res':a.status==='rejected'?' rej':'');
+      const cls = 'appeal' + (a.status === 'accepted' ? ' res' : a.status === 'rejected' ? ' rej' : '');
       html += '<div class="' + cls + '">' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:5px"><b style="color:#FFF;font-size:12.5px">' + a.nick + '</b><small class="muted">' + a.date + '</small></div>' +
         '<div class="muted" style="margin-bottom:8px">' + a.reason + '</div>' +
         (a.status === 'pending'
           ? '<div style="display:flex;gap:6px"><button class="btn em sm" data-apok="' + a.id + '">✅</button><button class="btn cr sm" data-apno="' + a.id + '">❌</button></div>'
-          : '<span class="pill ' + (a.status==='accepted'?'appr':'rej') + '">' + (a.status==='accepted'?'✅ Удовлетворена':'❌ Отклонена') + '</span>') +
+          : '<span class="pill ' + (a.status === 'accepted' ? 'appr' : 'rej') + '">' + (a.status === 'accepted' ? '✅ Удовлетворена' : '❌ Отклонена') + '</span>') +
       '</div>';
     }
     box.innerHTML = html;
@@ -890,17 +965,19 @@ write(K.users, users);
 
   function renderNotifs(){
     const box = $('#notifList');
+    if (!box) return;
     if (!notifs.length){ box.innerHTML = '<div class="muted">Пусто.</div>'; return; }
     let html = '';
     for (let i = 0; i < notifs.length; i++){
       const n = notifs[i];
-      html += '<div class="notif ' + (n.cls||'') + '"><div class="notif-ic">' + n.ic + '</div><div class="notif-tx">' + n.tx + '</div><div class="notif-tm">' + n.t + '</div></div>';
+      html += '<div class="notif ' + (n.cls || '') + '"><div class="notif-ic">' + n.ic + '</div><div class="notif-tx">' + n.tx + '</div><div class="notif-tm">' + n.t + '</div></div>';
     }
     box.innerHTML = html;
   }
 
   function renderAchievements(){
     const box = $('#achBox');
+    if (!box) return;
     const data = {};
     for (let i = 0; i < reports.length; i++){
       const r = reports[i];
@@ -914,11 +991,11 @@ write(K.users, users);
     const ach = [];
     for (const n in data){
       const v = data[n];
-      if (v.hours >= 50) ach.push({n, ic:'🏆', t:'Марафонец', d:v.hours+' ч'});
-      else if (v.hours >= 30) ach.push({n, ic:'🥈', t:'Активный', d:v.hours+' ч'});
-      if (v.reports >= 5) ach.push({n, ic:'📜', t:'Исполнительный', d:v.reports+' отчётов'});
-      if (v.night >= 15) ach.push({n, ic:'🌙', t:'Ночной страж', d:v.night+' ночн. ч'});
-      if (v.bs >= 1000) ach.push({n, ic:'💎', t:'Высокий доход', d:fmt(v.bs)+' БС'});
+      if (v.hours >= 50) ach.push({n, ic:'🏆', t:'Марафонец', d:v.hours + ' ч'});
+      else if (v.hours >= 30) ach.push({n, ic:'🥈', t:'Активный', d:v.hours + ' ч'});
+      if (v.reports >= 5) ach.push({n, ic:'📜', t:'Исполнительный', d:v.reports + ' отчётов'});
+      if (v.night >= 15) ach.push({n, ic:'🌙', t:'Ночной страж', d:v.night + ' ночн. ч'});
+      if (v.bs >= 1000) ach.push({n, ic:'💎', t:'Высокий доход', d:fmt(v.bs) + ' БС'});
     }
     if (!ach.length){ box.innerHTML = '<div class="muted">Появятся позже.</div>'; return; }
     let html = '';
@@ -933,18 +1010,23 @@ write(K.users, users);
   /* ---------- АККАУНТЫ ---------- */
   function renderAccs(){
     const box = $('#accList');
+    if (!box) return;
+    if (!users.length){
+      box.innerHTML = '<div class="muted" style="padding:8px 4px">Пока нет аккаунтов. Зарегистрируйте первого ниже.</div>';
+      return;
+    }
     let html = '';
     for (let i = 0; i < users.length; i++){
       const u = users[i];
       const cur = u.id === curId;
       const r = RANKS[u.rankKey] || RANKS.unassigned;
-      html += '<div class="accrow ' + (cur?'cur':'') + '" data-pick="' + u.id + '">' +
+      html += '<div class="accrow ' + (cur ? 'cur' : '') + '" data-pick="' + u.id + '">' +
         '<div style="display:flex;gap:9px;align-items:center;min-width:0">' +
           '<div class="rep-av" style="width:28px;height:28px;font-size:11px;flex:0 0 28px">' + initials(u.nick) + '</div>' +
-          '<div><b style="font-size:12.5px;color:#FFF;display:block">' + u.nick + (cur?' <span class="tc" style="font-size:10px">(вы)</span>':'') + '</b>' +
+          '<div><b style="font-size:12.5px;color:#FFF;display:block">' + u.nick + (cur ? ' <span class="tc" style="font-size:10px">(вы)</span>' : '') + '</b>' +
           '<small class="muted">' + r.name + '</small></div>' +
         '</div>' +
-        '<b class="mono" style="font-size:12.5px;color:' + (r.ctrl?'#F08080':'var(--copper)') + '">' + (r.ctrl?'Контроль':fmt(u.balance)+' БС') + '</b>' +
+        '<b class="mono" style="font-size:12.5px;color:' + (r.ctrl ? '#F08080' : 'var(--copper)') + '">' + (r.ctrl ? 'Контроль' : fmt(u.balance) + ' БС') + '</b>' +
       '</div>';
     }
     box.innerHTML = html;
@@ -967,7 +1049,7 @@ write(K.users, users);
     const p = $('#rPass').value.trim();
     if (black.find(b => b.nick.toLowerCase() === n.toLowerCase())){ alert('⛔ Ник в ЧСА!'); return; }
     if (users.find(u => u.nick.toLowerCase() === n.toLowerCase())){ alert('Ник занят!'); return; }
-    const u = {id:'user_'+Date.now(), nick:n, forum:f, vk:v, rankKey:'unassigned', balance:0, pass:p};
+    const u = {id:'user_' + Date.now(), nick:n, forum:f, vk:v, rankKey:'unassigned', balance:0, pass:p};
     users.push(u);
     curId = u.id;
     sstr(K.cur, curId);
@@ -1002,7 +1084,7 @@ write(K.users, users);
     for (let i = 0; i < users.length; i++){
       const u = users[i];
       const r = RANKS[u.rankKey] || RANKS.unassigned;
-      csv += '"' + u.nick + '";"' + r.name + '";"' + (r.ctrl?'Контроль':'ЗП') + '";"' + (u.forum||'') + '";"' + (u.vk||'') + '";"' + (u.balance||0) + '"\n';
+      csv += '"' + u.nick + '";"' + r.name + '";"' + (r.ctrl ? 'Контроль' : 'ЗП') + '";"' + (u.forum || '') + '";"' + (u.vk || '') + '";"' + (u.balance || 0) + '"\n';
     }
     const b = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'});
     const a = document.createElement('a');
@@ -1015,6 +1097,7 @@ write(K.users, users);
 
   function renderTariffs(){
     const box = $('#tariffBox');
+    if (!box) return;
     let html = '';
     for (const k in RANKS){
       if (k === 'unassigned') continue;
@@ -1022,9 +1105,9 @@ write(K.users, users);
       const gg = k === 'zga' || k === 'ga';
       const night = Math.round(v.r60 * 1.5);
       const over = Math.round(v.r60 * 1.25);
-      html += '<div class="trow ' + (v.ctrl?'ctrl':(gg?'gg':'')) + '">' +
+      html += '<div class="trow ' + (v.ctrl ? 'ctrl' : (gg ? 'gg' : '')) + '">' +
         '<div class="trow-l"><div class="trow-n">' + v.name + '</div>' +
-        '<div class="trow-m">' + (v.ctrl?'Контролирующий орган':(gg?'Сдаёт отчёт (ЗП)':'Серверный состав')) + '</div></div>' +
+        '<div class="trow-m">' + (v.ctrl ? 'Контролирующий орган' : (gg ? 'Сдаёт отчёт (ЗП)' : 'Серверный состав')) + '</div></div>' +
         '<div class="trow-r">' +
           (v.ctrl
             ? '<b>—</b><small>без БС</small>'
@@ -1101,14 +1184,11 @@ write(K.users, users);
       const tdl = t.closest('[data-tdl]');
       if (tdl){ tasks = tasks.filter(x => x.id !== parseInt(tdl.dataset.tdl)); persist(); renderTasks(); }
 
-      // Клик по фону модалки — закрыть
       if (t.classList && t.classList.contains('ov')) t.classList.remove('open');
     });
 
-    // Escape
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllM(); });
 
-    // Формы
     $('#repForm').addEventListener('submit', submitReport);
     $('#gateForm').addEventListener('submit', tryUnlock);
     $('#regForm').addEventListener('submit', register);
@@ -1116,13 +1196,11 @@ write(K.users, users);
     $('#blackForm').addEventListener('submit', addBlack);
     $('#pinForm').addEventListener('submit', changePin);
 
-    // Калькулятор: только 4 инпута, слушаем на форме через делегирование
     $('#repForm').addEventListener('input', function(e){
       const id = e.target.id;
       if (id === 'hDay' || id === 'hNight' || id === 'hOver' || id === 'repCount') calc();
     });
 
-    // Чекбоксы бонусов
     $('#bonusList').addEventListener('click', function(e){
       const lbl = e.target.closest('[data-bk]');
       if (!lbl) return;
@@ -1131,12 +1209,10 @@ write(K.users, users);
       if (cb){ cb.checked = !cb.checked; calc(); }
     });
 
-    // Фильтры
     $('#fSearch').addEventListener('input', renderReports);
     $('#fStatus').addEventListener('change', renderReports);
     $('#fType').addEventListener('change', renderReports);
 
-    // Subtabs аналитики
     $('#anTabs').addEventListener('click', function(e){
       const b = e.target.closest('button[data-an]');
       if (!b) return;
@@ -1145,11 +1221,9 @@ write(K.users, users);
       renderAnalytics();
     });
 
-    // Назначение
     $('#asUser').addEventListener('change', syncAssign);
     $('#asRank').addEventListener('change', checkSupreme);
 
-    // Review пересчёт
     ['rvOral','rvStrict','rvManual'].forEach(function(id){
       const el = document.getElementById(id);
       el.addEventListener('input', recRev);
@@ -1173,6 +1247,65 @@ write(K.users, users);
     toast('⚖ Подана');
   }
 
+  /* ============================================================
+     МАСТЕР-КОМАНДЫ (только для тебя, через консоль браузера)
+     ============================================================ */
+
+  /* Создать владельца. Работает только если владельца ещё нет. */
+  window.__createOwner = function(nick, pass){
+    if (!nick || !pass){
+      console.log('%cФормат: __createOwner("Nick_Name", "пароль")', 'color:#F08080');
+      return;
+    }
+    const hasOwner = users.some(u => u.rankKey === 'zam_founder' || u.rankKey === 'founder');
+    if (hasOwner){
+      console.log('%c⛔ Владелец уже существует. Используй __resetOwner() если нужно пересоздать.', 'color:#F08080;font-weight:bold');
+      return;
+    }
+    if (users.find(u => u.nick.toLowerCase() === nick.toLowerCase())){
+      console.log('%cТакой ник уже занят.', 'color:#F08080');
+      return;
+    }
+    const u = {
+      id: 'owner_' + Date.now(),
+      nick: nick,
+      forum: '',
+      vk: '',
+      rankKey: 'zam_founder',
+      balance: 0,
+      pass: pass
+    };
+    users.push(u);
+    curId = u.id;
+    sstr(K.cur, curId);
+    persist();
+    console.log('%c👑 Владелец ' + nick + ' создан. Обновляю страницу...', 'color:#D6B26E;font-weight:bold;font-size:14px');
+    setTimeout(() => location.reload(), 600);
+  };
+
+  /* Пересоздать владельца (если потерял доступ) */
+  window.__resetOwner = function(nick, pass){
+    users = users.filter(u => u.rankKey !== 'zam_founder' && u.rankKey !== 'founder');
+    persist();
+    window.__createOwner(nick, pass);
+  };
+
+  /* Полный сброс всей базы */
+  window.__resetAll = function(){
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('gi_'))
+      .forEach(k => localStorage.removeItem(k));
+    sessionStorage.clear();
+    console.log('%c💣 Все данные удалены. Обновляю...', 'color:#F08080;font-weight:bold');
+    setTimeout(() => location.reload(), 500);
+  };
+
+  /* Показать текущие пароли (для себя) */
+  window.__showPins = function(){
+    console.log('%c🔑 Пароль Руководства: ' + pinL, 'color:#D6B26E;font-weight:bold');
+    console.log('%c👑 Мастер-пароль: ' + pinF, 'color:#F08080;font-weight:bold');
+  };
+
   /* ---------- СТАРТ ---------- */
   window.addEventListener('DOMContentLoaded', function(){
     renderBonuses();
@@ -1195,38 +1328,18 @@ write(K.users, users);
     $('#shiftDate').value = today();
     $('#taskDate').value = today();
 
-   /* ============================================================
-   МАСТЕР-КОМАНДА: создать владельца.
-   Открыть в браузере консоль (F12 → Console) и выполнить:
-       __createOwner('Твой_Ник', 'твойПароль')
-   Только ты знаешь эту команду. Больше никто владельцем не станет.
-   ============================================================ */
-window.__createOwner = function(nick, pass){
-  if (!nick || !pass){ console.log('Формат: __createOwner("Nick_Name", "пароль")'); return; }
-  if (users.find(u => u.nick === nick)){ console.log('Такой ник уже есть'); return; }
-  const u = {
-    id: 'owner_' + Date.now(),
-    nick,
-    forum: '',
-    vk: '',
-    rankKey: 'zam_founder',
-    balance: 0,
-    pass
-  };
-  users.push(u);
-  curId = u.id;
-  sstr(K.cur, curId);
-  persist();
-  console.log('👑 Владелец ' + nick + ' создан. Обнови страницу.');
-  location.reload();
-};
+    bind();
 
-/* Мастер-сброс: если потерял доступ и нужно пересоздать владельца */
-window.__resetOwner = function(nick, pass){
-  users = users.filter(u => u.rankKey !== 'zam_founder' && u.rankKey !== 'founder');
-  persist();
-  __createOwner(nick, pass);
-};
-     bind();
+    /* Подсказка в консоли */
+    if (!users.length){
+      console.log(
+        '%c⚜ GROZOV IMPERIUM — первый запуск\n' +
+        '%cБаза пуста. Чтобы стать владельцем, выполни в консоли:\n' +
+        '%c__createOwner("Твой_Ник", "твойПароль")',
+        'color:#D6B26E;font-weight:bold;font-size:16px',
+        'color:#C9C2B2;font-size:12px',
+        'color:#2FBF8F;font-weight:bold;font-size:13px;font-family:monospace'
+      );
+    }
   });
 })();
