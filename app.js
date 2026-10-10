@@ -56,14 +56,11 @@
   function swrite(k, v){ try{ sessionStorage.setItem(k, v); }catch(e){} }
   function sdel(k){ try{ sessionStorage.removeItem(k); }catch(e){} }
 
-  const D_OWNER = {
-    id:'user_zam_founder', nick:'Зам_Основателя',
-    forum:'https://forum.blackrussia.online', vk:'https://vk.com',
-    rankKey:'zam_founder', balance:0, pass:'admin'
-  };
-
-  let users   = read(K.users, null);
-  if (!Array.isArray(users) || !users.length){ users=[D_OWNER]; write(K.users,users); }
+  /* При первом запуске база пуста. Никаких авто-владельцев.
+   Первого владельца создаёшь ты сам через консоль — см. код ниже. */
+let users = read(K.users, []);
+if (!Array.isArray(users)) users = [];
+write(K.users, users);
   let reports = read(K.reports, []);
   let black   = read(K.black, []);
   let audit   = read(K.audit, []);
@@ -1198,6 +1195,38 @@
     $('#shiftDate').value = today();
     $('#taskDate').value = today();
 
-    bind();
+   /* ============================================================
+   МАСТЕР-КОМАНДА: создать владельца.
+   Открыть в браузере консоль (F12 → Console) и выполнить:
+       __createOwner('Твой_Ник', 'твойПароль')
+   Только ты знаешь эту команду. Больше никто владельцем не станет.
+   ============================================================ */
+window.__createOwner = function(nick, pass){
+  if (!nick || !pass){ console.log('Формат: __createOwner("Nick_Name", "пароль")'); return; }
+  if (users.find(u => u.nick === nick)){ console.log('Такой ник уже есть'); return; }
+  const u = {
+    id: 'owner_' + Date.now(),
+    nick,
+    forum: '',
+    vk: '',
+    rankKey: 'zam_founder',
+    balance: 0,
+    pass
+  };
+  users.push(u);
+  curId = u.id;
+  sstr(K.cur, curId);
+  persist();
+  console.log('👑 Владелец ' + nick + ' создан. Обнови страницу.');
+  location.reload();
+};
+
+/* Мастер-сброс: если потерял доступ и нужно пересоздать владельца */
+window.__resetOwner = function(nick, pass){
+  users = users.filter(u => u.rankKey !== 'zam_founder' && u.rankKey !== 'founder');
+  persist();
+  __createOwner(nick, pass);
+};
+     bind();
   });
 })();
