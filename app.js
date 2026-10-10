@@ -250,16 +250,50 @@
   }
 
   function checkHash(){
-    const h = location.hash;
-    if (h && h.startsWith('#assign=')){
-      const t = h.slice(8).trim();
-      const u = users.find(x => x.id === t || x.nick.toLowerCase() === t.toLowerCase());
-      if (u){
-        toast('📍 Запрос для: ' + u.nick);
-        go('registry');
-        setTimeout(() => openAssign(u.id), 350);
+  const h = location.hash;
+  if (!h || !h.startsWith('#assign=')) return;
+
+  const t = decodeURIComponent(h.slice(8)).trim();
+  const u = users.find(x => x.id === t || x.nick.toLowerCase() === t.toLowerCase());
+
+  if (!u){
+    console.log('%c🔎 Ссылка назначения: пользователь не найден — ' + t, 'color:#F08080');
+    return;
+  }
+
+  console.log('%c📍 Ссылка назначения для: ' + u.nick, 'color:#D6B26E;font-weight:bold');
+
+  /* Уходим в панель */
+  go('registry');
+
+  /* Если панель не разблокирована — покажем подсказку над PIN-гейтом
+     и оставим ID в window, чтобы открыть модалку сразу после входа. */
+  if (!access){
+    window.__pendingAssignUserId = u.id;
+
+    const gate = document.getElementById('gate');
+    if (gate){
+      /* Вставляем уведомление над формой пароля */
+      let info = document.getElementById('gatePendingInfo');
+      if (!info){
+        info = document.createElement('div');
+        info.id = 'gatePendingInfo';
+        info.style.cssText = 'background:rgba(214,178,110,.1);border:1px solid rgba(214,178,110,.4);color:#D6B26E;padding:11px 14px;border-radius:10px;margin:0 0 14px;font-size:12.5px;line-height:1.5;text-align:left';
+        const form = document.getElementById('gateForm');
+        form.parentNode.insertBefore(info, form);
       }
+      info.innerHTML = '📍 <b>Запрос на выдачу должности</b><br>' +
+        'Администратор: <b>' + u.nick + '</b><br>' +
+        'Войдите в панель паролем, чтобы выдать должность.';
     }
+  } else {
+    /* Панель уже разблокирована — сразу открываем модалку */
+    setTimeout(() => openAssign(u.id), 300);
+  }
+
+  /* Убираем хэш, чтобы при повторном клике по той же ссылке
+     checkHash срабатывал снова (иначе браузер не триггерит hashchange) */
+  history.replaceState(null, '', location.pathname + location.search);
   }
 
   /* ---------- КАБИНЕТ ---------- */
