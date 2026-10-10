@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B1412">
+<title>GROZOV IMPERIUM</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-in">
+    <button class="brand" data-go="cabinet">
+      <span class="crest">⚜</span>
+      <span class="brand-txt">
+        <b>GROZOV IMPERIUM</b>
+        <i>Канцелярия</i>
+      </span>
+    </button>
+
+    <nav class="dnav">
+      <button class="on" data-go="cabinet">Кабинет</button>
+      <button data-go="report">Отчёт</button>
+      <button data-go="registry">Канцелярия</button>
+      <button data-go="analytics">Аналитика</button>
+      <button data-go="tasks">Дела</button>
+      <button data-go="tariffs">Тарифы</button>
+      <button data-go="rules">Регламент</button>
+    </nav>
+
+    <button class="upill" data-act="acc">
+      <span class="uav" id="hAv">ЗО</span>
+      <span class="umeta">
+        <b id="hNick">—</b>
+        <i id="hRank">—</i>
+      </span>
+      <span class="ubal" id="hBal">0 БС</span>
+    </button>
+  </div>
+</header>
+
+<main class="main">
+
+<!-- КАБИНЕТ -->
+<section class="pane on" id="p-cabinet">
+  <div class="col2">
+    <article class="card profile">
+      <div class="av-xl" id="cabAv">ЗО</div>
+      <h2 class="pname" id="cabNick">—</h2>
+      <div class="prank" id="cabRank">—</div>
+
+      <div class="note note-red hide" id="cabCtrl">
+        ⚜ <b>Контролирующий орган</b> — зарплата БС не начисляется.
+      </div>
+
+      <div class="note note-copper hide" id="cabPend">
+        <b>⏳ Должность не присвоена</b>
+        <p>Скопируйте ссылку и передайте руководству (ГТС–Основатель).</p>
+        <button class="btn btn-sm" data-act="copy">📋 Скопировать ссылку</button>
+      </div>
+
+      <div class="pacts">
+        <button class="ghost sm" data-act="copy">🔗 Ссылка</button>
+        <a class="ghost sm" id="cabForum" href="#" target="_blank" rel="noopener">🌐 Форум</a>
+        <a class="ghost sm" id="cabVk" href="#" target="_blank" rel="noopener">💬 ВК</a>
+      </div>
+
+      <div class="balbox" id="cabBalBox">
+        <div class="ballbl">Баланс к выплате</div>
+        <div class="balval" id="cabBalBig">0 БС</div>
+        <div class="balnote">Обнуляется и выдаётся в игре в ночь с вс на пн.</div>
+      </div>
+
+      <button class="btn" data-go="report" id="cabCta">➕ Сдать отчёт</button>
+    </article>
+
+    <article class="card">
+      <div class="chd">
+        <h3>📜 Мои отчёты</h3>
+      </div>
+      <div id="myReps"></div>
+    </article>
+  </div>
+</section>
+
+<!-- ОТЧЁТ -->
+<section class="pane" id="p-report">
+  <div class="col2 report">
+    <article class="card">
+      <div class="chd">
+        <h3>📜 Еженедельный отчёт</h3>
+        <small id="formWho">—</small>
+      </div>
+
+      <div class="note note-red hide" id="ctrlBlock">
+        <b>⚜ Контролирующий состав</b>
+        <p>Высшая администрация не сдаёт отчёты и не получает зарплату БС.</p>
+      </div>
+
+      <form id="repForm" autocomplete="off">
+        <div class="ft">👤 Администратор</div>
+        <div class="g2">
+          <label class="fld">Ник
+            <input type="text" id="fNick" readonly>
+          </label>
+          <label class="fld">Должность
+            <input type="text" id="fRankName" readonly>
+            <input type="hidden" id="fRankKey">
+            <small class="hint" id="fRankHint"></small>
+          </label>
+        </div>
+
+        <div class="ft">⏱ Часы</div>
+        <div class="g3">
+          <label class="fld">Дневные *
+            <input type="number" step="0.5" min="0" max="200" id="hDay" value="0" required>
+          </label>
+          <label class="fld">Ночные 🌙
+            <input type="number" step="0.5" min="0" max="200" id="hNight" value="0">
+          </label>
+          <label class="fld">Овертайм
+            <input type="number" step="0.5" min="0" max="200" id="hOver" value="0">
+          </label>
+        </div>
+
+        <div class="g2">
+          <label class="fld">Репортов
+            <input type="number" min="0" id="repCount" value="0">
+          </label>
+          <label class="fld">Дата смены
+            <input type="date" id="shiftDate">
+          </label>
+        </div>
+
+        <div class="ft">📸 Доказательства</div>
+        <label class="fld">Ссылка *
+          <input type="url" id="proofUrl" placeholder="https://imgur.com/a/..." required>
+        </label>
+
+        <div class="ft">🏆 Премии</div>
+        <div id="bonusList"></div>
+
+        <div class="ft">📝 Комментарий</div>
+        <textarea id="comment" placeholder="Опишите участие..."></textarea>
+
+        <button type="submit" class="btn mt">🚀 Отправить</button>
+      </form>
+    </article>
+
+    <aside class="repaside">
+      <div class="calc">
+        <div class="calclbl">Расчёт</div>
+        <div class="calcbig"><span id="cTotal">0</span><span class="u">БС</span></div>
+        <ul class="brk">
+          <li><span>День (<b id="lDayH">0</b>ч):</span><b id="lDayB">0 БС</b></li>
+          <li><span>Ночь ×1.5 (<b id="lNightH">0</b>ч):</span><b id="lNightB">0 БС</b></li>
+          <li><span>Овер +25% (<b id="lOverH">0</b>ч):</span><b id="lOverB">0 БС</b></li>
+          <li><span>Премии:</span><b id="lBonus">+0 БС</b></li>
+        </ul>
+      </div>
+
+      <div class="card cpad">
+        <div class="aside-t">📋 Копия для чата</div>
+        <button class="ghost w100" data-act="copychat">Скопировать текст</button>
+      </div>
+
+      <div class="card cpad">
+        <div class="aside-t">🤖 Проверка</div>
+        <button class="ghost w100" data-act="aicheck">Проверить отчёт</button>
+        <div id="aiOut" class="aiout"></div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- КАНЦЕЛЯРИЯ -->
+<section class="pane" id="p-registry">
+  <div id="gate" class="gate">
+    <div class="gate-crest">🔐</div>
+    <h2 class="gate-t">Панель Канцелярии</h2>
+    <p class="muted">Доступ: <b>от ГТС до Основателя</b>. ЗГА и ГА доступа не имеют.</p>
+    <form id="gateForm">
+      <label class="fld">
+        <input type="password" id="pinIn" placeholder="Пароль канцелярии" required>
+        <small class="hint">Руководство: <b class="tc">imperium2026</b> · Зам. Основателя: <b class="tr">founder2026</b></small>
+      </label>
+      <button type="submit" class="btn">Войти ➔</button>
+    </form>
+  </div>
+
+  <div id="work" class="hide">
+    <div class="workhead">
+      <div>
+        <h2 class="workt">⚜ Канцелярия <span class="pill pend" id="accTag">—</span></h2>
+        <p class="muted" id="accDesc"></p>
+      </div>
+      <div class="workacts">
+        <button class="btn em sm" data-act="payout">💸 Выплата</button>
+        <button class="btn sm" data-act="assign">⚜ Должность</button>
+        <button class="ghost sm" data-act="black">⛔ ЧСА</button>
+        <button class="ghost sm" data-act="csv">📥 CSV</button>
+        <button class="ghost sm" data-act="pin">🔑 Пароли</button>
+        <button class="ghost sm tr" data-act="lock">🔒 Выход</button>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><span>Всего</span><b id="sTotal">0</b></div>
+      <div class="kpi"><span>Ждут</span><b class="tc" id="sPend">0</b></div>
+      <div class="kpi"><span>Одобрено</span><b class="te" id="sAppr">0</b></div>
+      <div class="kpi"><span>К выдаче</span><b class="tc" id="sBs">0 БС</b></div>
+    </div>
+
+    <article class="card">
+      <div class="chd">
+        <h3>👥 Состав</h3>
+        <small>Всего: <b id="sAdmins">1</b></small>
+      </div>
+      <div id="roster" class="roster"></div>
+    </article>
+
+    <article class="card">
+      <div class="chd"><h3>📊 Нагрузка (часы)</h3></div>
+      <div id="loadChart"></div>
+    </article>
+
+    <div class="filters">
+      <input type="text" id="fSearch" placeholder="🔍 Поиск...">
+      <select id="fStatus">
+        <option value="all">Все статусы</option>
+        <option value="pending">Ждут</option>
+        <option value="approved">Одобрено</option>
+        <option value="paid">Выплачено</option>
+        <option value="rejected">Отклонено</option>
+      </select>
+      <select id="fType">
+        <option value="all">Все должности</option>
+        <option value="ga_zga">ЗГА / ГА</option>
+        <option value="server">Мл./Ст. адм.</option>
+      </select>
+    </div>
+
+    <h3 class="stitle">📜 Отчёты</h3>
+    <div id="repBox"></div>
+
+    <article class="card">
+      <div class="chd">
+        <h3>📜 Аудит</h3>
+        <button class="ghost sm" data-act="clra">Очистить</button>
+      </div>
+      <div id="auditBox" class="scroll-sm"></div>
+    </article>
+  </div>
+</section>
+
+<!-- АНАЛИТИКА -->
+<section class="pane" id="p-analytics">
+  <article class="card">
+    <div class="chd"><h3>📊 Аналитика</h3></div>
+    <div class="subtabs" id="anTabs">
+      <button class="on" data-an="hours">Часы</button>
+      <button data-an="bs">БС</button>
+      <button data-an="reports">Репорты</button>
+    </div>
+    <div id="anBox"></div>
+  </article>
+
+  <article class="card">
+    <div class="chd"><h3>📅 Календарь</h3></div>
+    <div id="calBox"></div>
+  </article>
+</section>
+
+<!-- ДЕЛА -->
+<section class="pane" id="p-tasks">
+  <div class="col2">
+    <article class="card">
+      <div class="chd"><h3>🗂 Поручения</h3></div>
+      <form id="taskForm" autocomplete="off">
+        <label class="fld">Поручение
+          <input type="text" id="taskTitle" placeholder="Например: Проверить жалобу" required>
+        </label>
+        <div class="g2">
+          <label class="fld">Приоритет
+            <select id="taskPrio">
+              <option value="normal">Обычный</option>
+              <option value="high">Высокий</option>
+              <option value="urgent">Срочный</option>
+            </select>
+          </label>
+          <label class="fld">Срок
+            <input type="date" id="taskDate">
+          </label>
+        </div>
+        <button type="submit" class="btn sm">➕ Добавить</button>
+      </form>
+      <div id="taskList" class="mt"></div>
+    </article>
+
+    <article class="card">
+      <div class="chd"><h3>⚖ Апелляции</h3></div>
+      <div id="appealList"></div>
+    </article>
+
+    <article class="card">
+      <div class="chd"><h3>🔔 Уведомления</h3></div>
+      <div id="notifList"></div>
+    </article>
+
+    <article class="card">
+      <div class="chd"><h3>🏅 Достижения</h3></div>
+      <div id="achBox"></div>
+    </article>
+  </div>
+</section>
+
+<!-- ТАРИФЫ -->
+<section class="pane" id="p-tariffs">
+  <article class="card">
+    <div class="chd"><h3>📘 Тарифы</h3></div>
+    <div id="tariffBox" class="tariffs"></div>
+  </article>
+</section>
+
+<!-- РЕГЛАМЕНТ -->
+<section class="pane" id="p-rules">
+  <div class="col2">
+    <article class="card"><h3>⚜ Иерархия</h3><p class="muted">Выдача должностей: строго от ГТС до Основателя. ЗГА и ГА сдают отчёты наравне с составом. Контролирующий орган зарплату БС не получает.</p></article>
+    <article class="card"><h3>📋 Назначение</h3><p class="muted">Администратор не выбирает должность сам. Копирует персональную ссылку (<code>#assign=ID</code>) и передаёт руководству.</p></article>
+    <article class="card"><h3>🌙 Ночь</h3><p class="muted">00:00–07:00 МСК, коэффициент ×1.5. AFK более 2 минут за 30-мин отрезок не оплачивается.</p></article>
+    <article class="card"><h3>⚠ Взыскания</h3><p class="muted">Устный пред −10%. Строгий выговор −25%. 3/3 — аннулирование и ЧСА.</p></article>
+  </div>
+</section>
+
+</main>
+
+<nav class="mbar">
+  <button class="on" data-go="cabinet"><i>🏛</i><span>Кабинет</span></button>
+  <button data-go="report"><i>📜</i><span>Отчёт</span></button>
+  <button data-go="registry"><i>🔐</i><span>Панель</span></button>
+  <button data-go="analytics"><i>📊</i><span>Графики</span></button>
+  <button data-go="tasks"><i>🗂</i><span>Дела</span></button>
+</nav>
+
+<!-- МОДАЛКИ -->
+<div class="ov" id="mAcc">
+  <div class="mbox">
+    <div class="mhd"><h3>Аккаунты</h3><button class="mcl" data-close>×</button></div>
+    <div class="mbd">
+      <div class="actbox">
+        <div>
+          <small>Активный:</small>
+          <b id="mNick">—</b>
+          <i class="tc" id="mRank">—</i>
+        </div>
+        <div class="textr">
+          <small>Баланс:</small>
+          <b class="mono tc" id="mBal">0 БС</b>
+        </div>
+      </div>
+      <div class="aside-t">Переключить</div>
+      <div id="accList" class="scroll-sm"></div>
+      <div class="div"></div>
+      <div class="aside-t tc">➕ Регистрация</div>
+      <form id="regForm" autocomplete="off">
+        <label class="fld">Ник (Nick_Name) *
+          <input type="text" id="rNick" required pattern="^[A-Za-z]+_[A-Za-z]+$">
+        </label>
+        <div class="g2">
+          <label class="fld">Форум *<input type="url" id="rForum" required></label>
+          <label class="fld">ВК *<input type="url" id="rVk" required></label>
+        </div>
+        <label class="fld">Пароль *<input type="password" id="rPass" required minlength="4"></label>
+        <button type="submit" class="btn sm">Зарегистрировать</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="mRev">
+  <div class="mbox">
+    <div class="mhd"><h3 class="tc">⚖ Рассмотрение</h3><button class="mcl" data-close>×</button></div>
+    <div class="mbd">
+      <div class="infobox">
+        <div class="fb"><span>Ник:</span><b id="rvNick">—</b></div>
+        <div class="fb"><span>Должность:</span><b id="rvRank">—</b></div>
+        <div class="fb"><span>Базовая:</span><b class="mono te" id="rvBase">0 БС</b></div>
+        <div class="fb"><span>Скрины:</span><a id="rvProof" href="#" target="_blank" rel="noopener">Открыть ↗</a></div>
+      </div>
+
+      <div class="ft tr">⚠ Взыскания</div>
+      <div class="g2">
+        <label class="fld">Устные (−10%)
+          <select id="rvOral"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+        </label>
+        <label class="fld">Строгие (−25%)
+          <select id="rvStrict"><option value="0">0</option><option value="1">1</option><option value="2">2</option></select>
+        </label>
+      </div>
+      <div class="g2">
+        <label class="fld">Доп. удержание<input type="number" id="rvManual" value="0" min="0"></label>
+        <label class="fld">Причина<input type="text" id="rvReason"></label>
+      </div>
+
+      <div class="totalbox">
+        <span>ИТОГО:</span>
+        <b class="mono tc" id="rvFinal">0 БС</b>
+      </div>
+
+      <div class="acts">
+        <button class="btn em" data-act="approve">✅ Одобрить</button>
+        <button class="btn cr" data-act="reject">❌ Отклонить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="mAssign">
+  <div class="mbox">
+    <div class="mhd"><h3 class="tc">⚜ Назначение</h3><button class="mcl" data-close>×</button></div>
+    <div class="mbd">
+      <label class="fld">Администратор<select id="asUser"></select></label>
+      <label class="fld">Должность<select id="asRank"></select>
+        <small class="hint tr" id="asHint"></small>
+      </label>
+      <label class="fld hide" id="founderBox">🔐 Мастер-пароль<input type="password" id="founderPass"></label>
+      <div class="acts">
+        <button class="btn" data-act="saveAssign">💾 Сохранить</button>
+        <button class="ghost" data-close>Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="mPay">
+  <div class="mbox">
+    <div class="mhd"><h3 class="tc">💸 Выплата</h3><button class="mcl" data-close>×</button></div>
+    <div class="mbd">
+      <p class="muted">Все балансы будут обнулены, отчёты перейдут в «Выплачено».</p>
+      <div class="infobox" id="payList"></div>
+      <div class="totalbox"><span>ИТОГО:</span><b class="mono tc" id="payTotal">0 БС</b></div>
+      <div class="acts">
+        <button class="btn em" data-act="confirmPayout">✅ Подтвердить</button>
+        <button class="ghost" data-close>Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="mBlack">
+  <div class="mbox">
+    <div class="mhd"><h3 class="tr">⛔ ЧСА</h3><button class="mcl" data-close>×</button></div>
+    <div class="mbd">
+      <form id="blackForm" autocomplete="off">
+        <div class="g2">
+          <label class="fld">Ник<input type="text" id="blNick" required></label>
+          <label class="fld">Причина<input type="text" id="blReason" required></label>
+        </div>
+        <button type="submit" class="btn cr sm">➕ Занести</button>
+      </form>
+      <div id="blackList" class="scroll-sm mt"></div>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="mPin">
+  <div class="mbox mbox-sm">
+    <div class="mhd"><h3>🔑 Пароли</h3><button class="mcl" data-close>×</button></div>
+    <div class="mbd">
+      <form id="pinForm" autocomplete="off">
+        <label class="fld">Какой
+          <select id="pcType">
+            <option value="lead">Руководство</option>
+            <option value="founder">Зам. Основателя</option>
+          </select>
+        </label>
+        <label class="fld">Текущий<input type="password" id="pcOld" required></label>
+        <label class="fld">Новый<input type="password" id="pcNew" required minlength="4"></label>
+        <label class="fld">Повтор<input type="password" id="pcConf" required minlength="4"></label>
+        <button type="submit" class="btn sm">Сохранить</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="mAppeal">
+  <div class="mbox mbox-sm">
+    <div class="mhd"><h3 class="tc">⚖ Апелляция</h3><button class="mcl" data-close>×</button></div>
+    <div class="mbd">
+      <label class="fld">Причина<textarea id="apReason" placeholder="Опишите..." required></textarea></label>
+      <button class="btn" data-act="sendAppeal">Отправить</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastIco">⚜</span><span id="toastMsg"></span></div>
+
+<script src="app.js"></script>
+</body>
+</html>
